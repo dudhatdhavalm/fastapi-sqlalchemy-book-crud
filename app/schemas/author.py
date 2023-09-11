@@ -10,3 +10,7 @@ class AuthorCreate(AuthorBase):
         
     class Config:
         orm_mode = True
+
+class AuthorUpdate(AuthorBase):
+    name: Optional[str] = None
+    id: int

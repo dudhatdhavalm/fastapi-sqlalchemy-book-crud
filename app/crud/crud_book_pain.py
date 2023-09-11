@@ -12,7 +12,7 @@ from datetime import date
 ModelType = TypeVar("ModelType", bound=Base)
 
 
-class CRUDBook(CRUDBase[Book, BookCreate, None]):
+class CRUDBook:
     def create(self, db: Session, *, obj_in: BookCreate) -> Book:
         db_obj = Book(title=obj_in.title, pages=obj_in.pages,
                       author_id=obj_in.author_id)
