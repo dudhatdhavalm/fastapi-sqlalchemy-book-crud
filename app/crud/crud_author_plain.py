@@ -4,9 +4,10 @@ from app.schemas.author import AuthorCreate
 from app.crud.base import CRUDBase
 from fastapi.encoders import jsonable_encoder
 from typing import Any, Dict, List, Union
+from datetime import date
 
 
-class CRUDAuthor():
+class CRUDAuthor:
     def create(self, db: Session, *, obj_in: AuthorCreate) -> Author:
         obj_in_data = jsonable_encoder(obj_in)
         db_obj = Author(**obj_in_data)
@@ -22,7 +23,20 @@ class CRUDAuthor():
         return db.query(Author).filter(Author.id == id).first()
 
     def update(self, db: Session, *, db_obj: Author, obj_in: Union[Author, Dict[str, Any]]) -> Author:
-        return super().update(db, db_obj=db_obj, obj_in=obj_in)
+        obj_data = jsonable_encoder(db_obj)
+        if isinstance(obj_in, dict):
+            update_data = obj_in
+        else:
+            update_data = obj_in.dict(exclude_unset=True)
+
+        for field in obj_data:
+            if field in update_data:
+                setattr(db_obj, field, update_data[field])
+
+        db.add(db_obj)
+        db.commit()
+        db.refresh(db_obj)
+        return db_obj
 
 
-author = CRUDAuthor(Author)
+author_plain = CRUDAuthor()

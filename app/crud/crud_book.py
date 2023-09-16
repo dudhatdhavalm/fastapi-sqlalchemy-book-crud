@@ -23,7 +23,7 @@ class CRUDBook(CRUDBase[Book, BookCreate, None]):
         return db_obj
 
     def get_multi(self, db: Session, *, skip: int = 0, limit: int = 100) -> List[Book]:
-        return super().get_multi(db, skip=skip, limit=limit)
+        return db.query(Book).offset(skip).limit(limit).all()
 
     def get_with_author(self, db: Session) -> List[Book]:
         books = db.query(Book.id, Book.title, Book.pages, Book.created_at,

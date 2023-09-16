@@ -39,5 +39,5 @@ def get_by_id(*, author_id: int, db: Session = Depends(dependencies.get_db)):
 @router.put("/{id}", status_code=200)
 def update_author(*, request: Request, author_id: int, author_in: AuthorUpdate, db: Session = Depends(dependencies.get_db)):
     result = crud.author.get(db=db, id=author_id)
-    author = crud.author.update(db=db, db_obj=result, obj_in=author_in)
+    author = crud.author_plain.update(db=db, db_obj=result, obj_in=author_in)
     return author

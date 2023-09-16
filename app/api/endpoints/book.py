@@ -26,26 +26,26 @@ router = APIRouter()
 
 @router.post("", status_code=200, response_model=Books)
 def create_book(*, book_in: BookCreate, db: Session = Depends(dependencies.get_db)) -> Books:
-    book = crud.book.create(db=db, obj_in=book_in)
+    book = crud.book_plain.create(db=db, obj_in=book_in)
     return book
 
 
 @router.get("", status_code=200)
 def get_book(*, db: Session = Depends(dependencies.get_db)):
-    book = crud.book.get_with_author(db=db)
+    book = crud.book_plain.get_with_author(db=db)
     return book
 
 
 @router.get("/{id}", status_code=200)
 def get_by_id(*, book_id: int, db: Session = Depends(dependencies.get_db)):
-    book = crud.book.get_books_with_id(db=db, book_id=book_id)
+    book = crud.book_plain.get_books_with_id(db=db, book_id=book_id)
     return book
 
 
 @router.put("/{id}", status_code=200)
 def update_book(*, request: Request, book_id: int, book_in: BookUpdate, db: Session = Depends(dependencies.get_db)):
     result = crud.book.get(db=db, id=book_id)
-    book = crud.book.update(db=db, db_obj=result, obj_in=book_in)
+    book = crud.book_plain.update(db=db, db_obj=result, obj_in=book_in)
     return book
 
 # @router.get("/books/{id}")

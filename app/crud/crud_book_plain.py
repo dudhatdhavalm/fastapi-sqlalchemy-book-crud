@@ -23,7 +23,7 @@ class CRUDBook:
         return db_obj
 
     def get_multi(self, db: Session, *, skip: int = 0, limit: int = 100) -> List[Book]:
-        return super().get_multi(db, skip=skip, limit=limit)
+        return db.query(Book).offset(skip).limit(limit).all()
 
     def get_with_author(self, db: Session) -> List[Book]:
         books = db.query(Book.id, Book.title, Book.pages, Book.created_at,
@@ -37,8 +37,21 @@ class CRUDBook:
         return books
 
     def update(self, db: Session, *, db_obj: Book, obj_in: Union[Book, Dict[str, Any]]) -> Book:
-        db_obj.created_at = date.today()
-        return super().update(db, db_obj=db_obj, obj_in=obj_in)
+        obj_data = jsonable_encoder(db_obj)
+        if isinstance(obj_in, dict):
+            update_data = obj_in
+        else:
+            update_data = obj_in.dict(exclude_unset=True)
+
+        update_data["created_at"] = date.today()
+        for field in obj_data:
+            if field in update_data:
+                setattr(db_obj, field, update_data[field])
+
+        db.add(db_obj)
+        db.commit()
+        db.refresh(db_obj)
+        return db_obj
 
 
-book = CRUDBook(Book)
+book_plain = CRUDBook()
