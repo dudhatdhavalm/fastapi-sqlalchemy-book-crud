@@ -3,56 +3,194 @@ from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.db.base_class import Base
+from bson.json_util import dumps, loads
+from pymongo import MongoClient
+from pymongo.database import Database
+from bson.objectid import ObjectId
+from bson.json_util import dumps
+from bson import ObjectId
+
+# database configuration
+DATABASE = MongoClient()['CRUDBaseDB']
+COLLECTION = DATABASE['CrudBaseCollection']
+
+T = TypeVar("T", bound=BaseModel)
 ModelType = TypeVar("ModelType", bound=Base)
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
 UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
 
 
-class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
-    def __init__(self, model: Type[ModelType]):
-        self.model = model
 
-    def get(self, db: Session, id: Any) -> Optional[ModelType]:        
-        return db.query(self.model).filter(self.model.id == id).first()
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
+
+    def __init__(self, db: Database, collection: str):
+        self.db = db
+        self.collection = db[collection]
+
+    def get(self, db: MongoClient, id: Any) -> Optional[ModelType]:        
+        return db[self.model].find_one({"_id": ObjectId(id)})
 
     def get_multi(
-        self, db: Session, *, skip: int = 0, limit: int = 100
+        self, db: MongoClient, *, skip: int = 0, limit: int = 100
     ) -> List[ModelType]:
-        return db.query(self.model).offset(skip).limit(limit).all()
+        return list(db[self.model].find().skip(skip).limit(limit))
 
-    def create(self, db: Session, *, obj_in: CreateSchemaType, created_by=None) -> ModelType:
-        obj_in_data = jsonable_encoder(obj_in)
+
+    def create(self, db: MongoClient, *, obj_in: Dict, created_by=None) -> Dict:
+        obj_in_data = dumps(obj_in)
         obj_in_data["created_by"] = created_by
-        db_obj = self.model(**obj_in_data)  # type: ignore
-        db.add(db_obj)
-        db.commit()
-        db.refresh(db_obj)
-        return db_obj
+        result = db.insert_one(obj_in_data)
+        return result.inserted_id
+
 
     def update(
         self,
-        db: Session,
+        db: MongoClient,
         *,
-        db_obj: ModelType,
-        obj_in: Union[UpdateSchemaType, Dict[str, Any]],
+        collection_name: str,
+        obj_id: str,
+        obj_in: Union[BaseModel, Dict[str, Any]],
         modified_by= None
-    ) -> ModelType:
-        obj_data = jsonable_encoder(db_obj)
+    ) -> Dict:
         if isinstance(obj_in, dict):
             update_data = obj_in
         else:
-            update_data = obj_in.dict(exclude_unset=True)
+            update_data = jsonable_encoder(obj_in)
         update_data["modified_by"] = modified_by
-        for field in obj_data:
-            if field in update_data:
-                setattr(db_obj, field, update_data[field])
-        db.add(db_obj)
-        db.commit()
-        db.refresh(db_obj)
-        return db_obj
+        update_result = db[collection_name].update_one({'_id': obj_id}, {'$set': update_data})
+        if update_result.matched_count > 0:
+            return db[collection_name].find_one({"_id": obj_id})
+        else:
+            raise ValueError('No document found with provided id')
 
-    def remove(self, db: Session, *, id: int) -> ModelType:
-        obj = db.query(self.model).get(id)
-        db.delete(obj)
-        db.commit()
+
+    @classmethod
+    def remove(cls, *, id: int) -> Type[ModelType]:
+        obj = COLLECTION.find_one({"_id": ObjectId(id)})
+        COLLECTION.delete_one({"_id": ObjectId(id)})
         return obj
