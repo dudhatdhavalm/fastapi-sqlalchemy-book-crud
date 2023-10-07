@@ -8,50 +8,153 @@ from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from app.db.base_class import Base
 from datetime import date
+from pymongo import MongoClient
+from bson.objectid import ObjectId
+from typing import Any, Dict, Union
+from bson import ObjectId
 
 ModelType = TypeVar("ModelType", bound=Base)
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class CRUDBook:
-    def create(self, db: Session, *, obj_in: BookCreate) -> Book:
-        db_obj = Book(title=obj_in.title, pages=obj_in.pages,
-                      author_id=obj_in.author_id)
-        db_obj.created_at = date.today()
-        db.add(db_obj)
-        db.commit()
-        db.refresh(db_obj)
-        return db_obj
 
-    def get_multi(self, db: Session, *, skip: int = 0, limit: int = 100) -> List[Book]:
-        return db.query(Book).offset(skip).limit(limit).all()
+    def create(self, db: MongoClient, *, obj_in: BookCreate) -> Dict:
+        collection = db['books']
+        data = {"title": obj_in.title,
+                "pages": obj_in.pages,
+                "author_id": ObjectId(obj_in.author_id),
+                "created_at": date.today()}
+        result = collection.insert_one(data)
+        return collection.find_one({"_id": result.inserted_id})
 
-    def get_with_author(self, db: Session) -> List[Book]:
-        books = db.query(Book.id, Book.title, Book.pages, Book.created_at,
-                         Book.author_id, Author.name.label("author_name")).join(Book, Author.id == Book.author_id).all()
+
+    def get_multi(self, db: MongoClient, *, skip: int = 0, limit: int = 100) -> List[Dict[str, Any]]:
+        return list(db['books'].find().skip(skip).limit(limit))
+
+
+    def get_with_author(self, db) -> List[Dict]:
+        books = list(db.books.aggregate([
+            {"$lookup": 
+                {
+                    "from": "authors",
+                    "localField": "author_id",
+                    "foreignField": "_id",
+                    "as": "author_data"
+                }
+            },
+            {"$unwind": "$author_data"},
+            {"$project": 
+                {
+                    "_id": 1,
+                    "title": 1,
+                    "pages": 1,
+                    "created_at": 1,
+                    "author_id": 1,
+                    "author_name": "$author_data.name"
+                }
+            }
+        ]))
+
+        for book in books:
+            # Convert ObjectIds to string
+            book["_id"] = str(book["_id"])
+            book["author_id"] = str(book["author_id"])
+
         return books
 
-    def get_books_with_id(self, db: Session, book_id: int):
-        books = db.query(Book.id, Book.title, Book.pages, Book.created_at,
-                         Book.author_id, Author.name.label("author_name")).join(Book, Author.id == Book.author_id).filter(Book.id == book_id).first()
+
+    def get_books_with_id(self, db: MongoClient, book_id: int):
+        books = db.books.find_one(
+            {"_id": ObjectId(book_id)},
+            {"title": 1, "pages": 1, "created_at": 1, "author_id": 1, "_id": 0}
+        )
+        
+        if books and "author_id" in books:
+            author = db.authors.find_one({"_id": ObjectId(books["author_id"])})
+            if author:
+                books["author_name"] = author.get("name")
 
         return books
 
-    def update(self, db: Session, *, db_obj: Book, obj_in: Union[Book, Dict[str, Any]]) -> Book:
-        obj_data = jsonable_encoder(db_obj)
+
+    def update(self, *, db_obj_id: str, obj_in: Union[Book, Dict[str, Any]]) -> Dict:
+        collection = self.db['books']
+        book = collection.find_one({"_id": ObjectId(db_obj_id)})
+        if book is None:
+            return
+
         if isinstance(obj_in, dict):
             update_data = obj_in
         else:
             update_data = obj_in.dict(exclude_unset=True)
 
         update_data["created_at"] = date.today()
-        for field in obj_data:
-            if field in update_data:
-                setattr(db_obj, field, update_data[field])
+        book.update(update_data)
 
-        db.add(db_obj)
-        db.commit()
-        db.refresh(db_obj)
-        return db_obj
+        collection.save(book)
+        return book
 
 
 book_plain = CRUDBook()
