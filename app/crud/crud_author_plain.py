@@ -9,37 +9,6 @@ from bson import ObjectId
 from pymongo import MongoClient
 from bson.json_util import dumps, loads
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 class CRUDAuthor:
 
     def create(self, db: MongoClient, *, obj_in: AuthorCreate) -> Dict:

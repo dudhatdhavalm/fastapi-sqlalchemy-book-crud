@@ -20,69 +20,6 @@ db = client['YourDatabaseName']
 
 ModelType = TypeVar("ModelType", bound=Base)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 class CRUDBook(CRUDBase[Book, BookCreate, None]):
 
     def create(self, *, obj_in: BookCreate) -> Dict:

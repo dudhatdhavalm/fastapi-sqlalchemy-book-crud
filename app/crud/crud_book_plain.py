@@ -15,69 +15,6 @@ from bson import ObjectId
 
 ModelType = TypeVar("ModelType", bound=Base)
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 class CRUDBook:
 
     def create(self, db: MongoClient, *, obj_in: BookCreate) -> Dict:

@@ -14,37 +14,6 @@ client = MongoClient('localhost', 27017)
 db = client['mydatabase']
 author_collection = db['author']
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 class CRUDAuthor(CRUDBase[Author, AuthorCreate, None]):
 
     def create(self, db: MongoClient, *, obj_in: AuthorCreate) -> Dict:
