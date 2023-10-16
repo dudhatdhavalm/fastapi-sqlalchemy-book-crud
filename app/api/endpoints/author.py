@@ -6,11 +6,14 @@ from app.api import dependencies
 from app.settings import DATABASE_URL
 from app.models.author import Base
 from app import crud
+from pymongo import MongoClient
 engine = create_engine(DATABASE_URL)
 
 
 def recreate_database():
-    Base.metadata.create_all(engine)
+    client = MongoClient()
+    client.drop_database("your_database_name")
+    client.create_collection("your_collection_name")
 
 
 recreate_database()

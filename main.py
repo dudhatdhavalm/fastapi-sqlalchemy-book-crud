@@ -9,13 +9,17 @@ from sqlalchemy.orm import sessionmaker
 from app.api import api_v1
 from app.models.book import Base, Book
 from app.settings import DATABASE_URL
+from pymongo import MongoClient
 
 engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
 
 
 def recreate_database():
-    Base.metadata.create_all(engine)
+    client = MongoClient(DATABASE_URL)
+    db = client.database
+    collection = db.collection
+    collection.drop()
 
 
 recreate_database()
