@@ -1,7 +1,7 @@
 from datetime import date
 from typing import Optional
 from app import crud
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse
 from sqlalchemy import create_engine
@@ -10,6 +10,8 @@ from app.schemas.book import BookCreate, Books, BookUpdate
 from app.models.book import Base
 from app.settings import DATABASE_URL
 from app.api import dependencies
+from fastapi.exceptions import RequestValidationError
+
 engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
 
@@ -25,7 +27,16 @@ router = APIRouter()
 
 
 @router.post("", status_code=200, response_model=Books)
-def create_book(*, book_in: BookCreate, db: Session = Depends(dependencies.get_db)) -> Books:
+def create_book(
+    *, book_in: BookCreate, db: Session = Depends(dependencies.get_db)
+) -> Books:
+    author = crud.author_plain.get_by_author_id(db=db, id=book_in.author_id)
+
+    if author is None:
+        raise HTTPException(
+            status_code=404, detail=f"Author id {book_in.author_id} not found"
+        )
+
     book = crud.book_plain.create(db=db, obj_in=book_in)
     return book
 
@@ -36,17 +47,45 @@ def get_book(*, db: Session = Depends(dependencies.get_db)):
     return book
 
 
-@router.get("/{id}", status_code=200)
+@router.get("/{book_id}", status_code=200)
 def get_by_id(*, book_id: int, db: Session = Depends(dependencies.get_db)):
     book = crud.book_plain.get_books_with_id(db=db, book_id=book_id)
+
+    if book is None:
+        raise HTTPException(status_code=404, detail=f"Book id {book_id} not found")
+
     return book
 
 
-@router.put("/{id}", status_code=200)
-def update_book(*, request: Request, book_id: int, book_in: BookUpdate, db: Session = Depends(dependencies.get_db)):
-    result = crud.book.get(db=db, id=book_id)
+@router.put("/{book_id}", status_code=200)
+def update_book(
+    *,
+    book_id: int,
+    book_in: BookUpdate,
+    db: Session = Depends(dependencies.get_db),
+):
+    result = crud.book_plain.get_books_with_id(db=db, book_id=book_id)
+
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"Book id {book_id} not found")
+
+    author = crud.author_plain.get_by_author_id(db=db, id=book_in.author_id)
+    if author is None:
+        raise HTTPException(
+            status_code=404, detail=f"Author id {book_in.author_id} not found"
+        )
+
     book = crud.book_plain.update(db=db, db_obj=result, obj_in=book_in)
     return book
+
+@router.delete("/{book_id}", status_code=200)
+def delete_book(*, book_id: int, db: Session = Depends(dependencies.get_db)) -> dict:
+    """
+    Delete Book
+    """
+    result = crud.book.remove(db=db, id=book_id)
+    return {"detail": f"Book id {book_id} deleted successfully"}
+
 
 # @router.get("/books/{id}")
 # def find_book(id: int):

@@ -9,6 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from app.api import api_v1
 from app.models.book import Base, Book
 from app.settings import DATABASE_URL
+import uvicorn
 
 engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
@@ -24,8 +25,13 @@ root_router = APIRouter()
 app = FastAPI()
 
 
-@root_router.get("/")
+@app.get("/")
 def root():
     return {"message": "Sample books API is online"}
 
+
 app.include_router((api_v1.api_router))
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=8000)

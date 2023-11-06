@@ -22,7 +22,7 @@ class CRUDBook(CRUDBase[Book, BookCreate, None]):
         db.refresh(db_obj)
         return db_obj
 
-    def get_multi(self, db: Session, *, skip: int = 0, limit: int = 100) -> List[Book]:
+    def get(self, db: Session, *, skip: int = 0, limit: int = 100) -> List[Book]:
         return db.query(Book).offset(skip).limit(limit).all()
 
     def get_with_author(self, db: Session) -> List[Book]:
@@ -37,7 +37,7 @@ class CRUDBook(CRUDBase[Book, BookCreate, None]):
         return books
 
     def update(self, db: Session, *, db_obj: Book, obj_in: Union[Book, Dict[str, Any]]) -> Book:
-        db_obj.created_at = date.today()
+        # db_obj.created_at = date.today()
         return super().update(db, db_obj=db_obj, obj_in=obj_in)
 
 

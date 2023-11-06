@@ -15,10 +15,10 @@ class CRUDAuthor(CRUDBase[Author, AuthorCreate, None]):
         db.refresh(db_obj)
         return db_obj
 
-    def get_all(self, db: Session, *, skip: int = 0, limit: int = 100) -> List[Author]:
+    def get(self, db: Session, *, skip: int = 0, limit: int = 100) -> List[Author]:
         return db.query(self.model).offset(skip).limit(limit).all()
 
-    def get(self,db:Session,id: int):
+    def get_by_author_id(self,db:Session,id: int):
         return db.query(self.model).filter(self.model.id == id).first()
 
     def update(self, db: Session, *, db_obj: Author, obj_in: Union[Author,Dict[str, Any]]) -> Author:

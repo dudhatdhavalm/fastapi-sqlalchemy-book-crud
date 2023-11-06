@@ -13,4 +13,3 @@ class AuthorCreate(AuthorBase):
 
 class AuthorUpdate(AuthorBase):
     name: Optional[str] = None
-    id: int
