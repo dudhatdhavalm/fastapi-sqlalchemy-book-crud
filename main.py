@@ -10,13 +10,23 @@ from app.api import api_v1
 from app.models.book import Base, Book
 from app.settings import DATABASE_URL
 import uvicorn
+from pymongo import MongoClient
 
 engine = create_engine(DATABASE_URL)
 Session = sessionmaker(bind=engine)
 
 
 def recreate_database():
-    Base.metadata.create_all(engine)
+    # Start client
+    client = MongoClient(DATABASE_URL)
+    
+    # Get the database
+    db = client.get_database()
+
+    # As the actual collection creation happens 
+    # when the first document is inserted, 
+    # just print a message here confirming the database is accessible 
+    print(f"Database {db.name} is ready.")
 
 
 recreate_database()
