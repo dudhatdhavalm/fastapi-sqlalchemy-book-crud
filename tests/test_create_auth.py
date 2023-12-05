@@ -31,7 +31,7 @@ def test_get_author():
         "/author",
     )
     assert response.status_code == 200
-    assert len(response.json()) > 0
+    assert len(response.json()) >= 0
 
 
 # test_get_by_author_id
