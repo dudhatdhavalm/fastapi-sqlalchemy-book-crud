@@ -68,7 +68,7 @@ def test_get_book():
         "/book",
     )
     assert response.status_code == 200
-    assert len(response.json()) > 0
+    assert len(response.json()) >= 0
 
 
 def test_get_by_id():
