@@ -4,4 +4,4 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-DATABASE_URL: str = os.getenv("DATABASE_URL", "postgresql://postgres:root@localhost/BooksDB")
+DATABASE_URL: str = os.getenv("DATABASE_URL", "")
