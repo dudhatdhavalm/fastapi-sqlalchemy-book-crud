@@ -5,38 +5,73 @@ from app.crud.base import CRUDBase
 from fastapi.encoders import jsonable_encoder
 from typing import Any, Dict, List, Union
 from datetime import date
+from bson import json_util
+from typing import List
+from pymongo.collection import Collection
+from typing import Optional
+from typing import Any, Dict, Union
+from bson import ObjectId
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 class CRUDAuthor:
-    def create(self, db: Session, *, obj_in: AuthorCreate) -> Author:
-        obj_in_data = jsonable_encoder(obj_in)
-        db_obj = Author(**obj_in_data)
-        db.add(db_obj)
-        db.commit()
-        db.refresh(db_obj)
-        return db_obj
 
-    def get(self, db: Session, *, skip: int = 0, limit: int = 100) -> List[Author]:
-        return db.query(Author).offset(skip).limit(limit).all()
+    def create(self, db, *, obj_in: dict) -> dict:
+        db_obj = db.Author.insert_one(json_util.loads(obj_in))
+        new_author = db.Author.find_one({"_id": db_obj.inserted_id})
+        return new_author
 
-    def get_by_author_id(self, db: Session, id: int):
-        return db.query(Author).filter(Author.id == id).first()
+    def get(self, collection: Collection, *, skip: int = 0, limit: int = 100) -> List[Author]:
+        authors_cursor = collection.find().skip(skip).limit(limit)
+        return list(authors_cursor)
 
-    def update(self, db: Session, *, db_obj: Author, obj_in: Union[Author, Dict[str, Any]]) -> Author:
-        obj_data = jsonable_encoder(db_obj)
-        if isinstance(obj_in, dict):
-            update_data = obj_in
+
+    def get_by_author_id(self, collection: Collection, id: int) -> Optional[dict]:
+        return collection.find_one({"_id": id})
+
+    
+    def update(self, collection: Collection, *, db_obj_id: ObjectId, obj_in: Union[Dict[str, Any], None]) -> Dict[str, Any]:
+        if obj_in is not None:
+            update_data = {k: v for k, v in obj_in.items() if v is not None}
+            result = collection.update_one({'_id': db_obj_id}, {'$set': update_data})
+            if result.modified_count > 0:
+                updated_document = collection.find_one({'_id': db_obj_id})
+                return updated_document
+            else:
+                # Nothing was updated.
+                return {}
         else:
-            update_data = obj_in.dict(exclude_unset=True)
-
-        for field in obj_data:
-            if field in update_data:
-                setattr(db_obj, field, update_data[field])
-
-        db.add(db_obj)
-        db.commit()
-        db.refresh(db_obj)
-        return db_obj
+            # obj_in is None, so no update will be performed.
+            return {}
 
 
 author_plain = CRUDAuthor()
