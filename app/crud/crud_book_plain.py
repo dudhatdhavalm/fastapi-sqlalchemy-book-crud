@@ -8,74 +8,168 @@ from fastapi.responses import JSONResponse
 from fastapi.encoders import jsonable_encoder
 from app.db.base_class import Base
 from datetime import date
+from pymongo.collection import Collection
+from pymongo.database import Database
+from bson import ObjectId
+from typing import List, Dict
+from typing import List
+from typing import Union, Dict, Any
 
 ModelType = TypeVar("ModelType", bound=Base)
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class CRUDBook:
-    def create(self, db: Session, *, obj_in: BookCreate) -> Book:
-        db_obj = Book(
-            title=obj_in.title, pages=obj_in.pages, author_id=obj_in.author_id
-        )
-        db_obj.created_at = date.today()
-        db.add(db_obj)
-        db.commit()
-        db.refresh(db_obj)
-        return db_obj
 
-    def get(self, db: Session, *, skip: int = 0, limit: int = 100) -> List[Book]:
-        return db.query(Book).offset(skip).limit(limit).all()
+    def create(self, db: Database, *, obj_in: dict) -> dict:
+        collection: Collection = db.books
+        db_obj = {
+            "title": obj_in["title"],
+            "pages": obj_in["pages"],
+            "author_id": ObjectId(obj_in["author_id"]),  # Assuming author_id is stored as an ObjectId in MongoDB
+            "created_at": date.today()
+        }
+        result = collection.insert_one(db_obj)
+        new_book = collection.find_one({"_id": result.inserted_id})
+        return new_book
 
-    def get_with_author(self, db: Session) -> List[Book]:
-        books = (
-            db.query(
-                Book.id,
-                Book.title,
-                Book.pages,
-                Book.created_at,
-                Book.author_id,
-                Author.name.label("author_name"),
-            )
-            .join(Book, Author.id == Book.author_id)
-            .all()
-        )
-        return books
+    def get(self, collection: Collection, *, skip: int = 0, limit: int = 100) -> List[Dict]:
+        books = collection.find({}).skip(skip).limit(limit)
+        return list(books)
 
-    def get_books_with_id(self, db: Session, book_id: int):
-        books = (
-            db.query(
-                Book.id,
-                Book.title,
-                Book.pages,
-                Book.created_at,
-                Book.author_id,
-                Author.name.label("author_name"),
-            )
-            .join(Book, Author.id == Book.author_id)
-            .filter(Book.id == book_id)
-            .first()
-        )
 
-        return books
+    def get_with_author(self, db: Database) -> List[Dict]:
+        pipeline = [
+            {
+                '$lookup': {
+                    'from': 'author',
+                    'localField': 'author_id',
+                    'foreignField': '_id',
+                    'as': 'author_info'
+                }
+            },
+            {
+                '$unwind': '$author_info'
+            },
+            {
+                '$project': {
+                    'id': 1,
+                    'title': 1,
+                    'pages': 1,
+                    'created_at': 1,
+                    'author_id': 1,
+                    'author_name': '$author_info.name'
+                }
+            }
+        ]
+        books_with_authors = list(db.get_collection("book").aggregate(pipeline))
+        
+        # Convert '_id' to 'id' and 'author_id' to the actual ObjectId string
+        for book in books_with_authors:
+            book['id'] = str(book.pop('_id'))
+            if 'author_id' in book:
+                book['author_id'] = str(book['author_id'])
+        
+        return books_with_authors
 
+    def get_books_with_id(self, db: Database, book_id: int):
+        # Assuming that the 'books' collection has references to authors by an 'author_id' field
+        books_collection: Collection = db.get_collection('books')
+        authors_collection: Collection = db.get_collection('authors')
+
+        # Assuming that book_id is stored as an integer in the database
+        book_data = books_collection.find_one({'_id': book_id}, {'_id': 0, 'author_id': 1, 'title': 1, 'pages': 1, 'created_at': 1})
+        if not book_data:
+            return None
+
+        # Lookup the author's name using the author_id found in the book_data
+        author_data = authors_collection.find_one({'_id': book_data['author_id']}, {'name': 1})
+        if author_data:
+            book_data['author_name'] = author_data.get('name', None)
+
+        return book_data
+
+    
     def update(
-        self, db: Session, *, db_obj: Book, obj_in: Union[Book, Dict[str, Any]]
-    ) -> Book:
-        obj_data = jsonable_encoder(db_obj)
-        if isinstance(obj_in, dict):
-            update_data = obj_in
-        else:
-            update_data = obj_in.dict(exclude_unset=True)
+        self, db: Collection, *, db_obj_id: ObjectId, obj_in: Union[Dict, Dict[str, Any]]
+    ) -> Dict:
+        # Find the document to be updated
+        db_obj = db.find_one({"_id": db_obj_id})
+        if db_obj is None:
+            return {}  # Returning an empty dictionary to indicate no object was found to update
 
-        print(obj_data)
-        for field in obj_data:
-            print(field)
-            if field in update_data:
-                setattr(db_obj, field, update_data[field])
-        db.add(db_obj)
-        db.commit()
-        db.refresh(db_obj)
-        return db_obj
+        # Prepare the update document
+        update_data = obj_in if isinstance(obj_in, dict) else obj_in.dict(exclude_unset=True)
+        
+        # Perform the update operation
+        result = db.find_one_and_update(
+            {"_id": db_obj_id},
+            {"$set": update_data},
+            return_document=True
+        )
+        
+        return result
 
 
 book_plain = CRUDBook()
