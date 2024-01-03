@@ -3,56 +3,198 @@ from fastapi.encoders import jsonable_encoder
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from app.db.base_class import Base
+from typing import TypeVar, Generic, Type
+from pymongo.collection import Collection
+from typing import List, TypeVar, Generic, Type
+from bson import ObjectId
+from typing import Any, Dict, Union
+
+ModelType = TypeVar('ModelType')
+
+# Since the same TypeVar ModelType is not available in the scope,
+# redefining ModelType here to be used in the CRUDBase class.
+ModelType = TypeVar("ModelType")
+
+# Generic Type for Documents
+DocumentType = TypeVar('DocumentType', bound=dict)
 ModelType = TypeVar("ModelType", bound=Base)
 CreateSchemaType = TypeVar("CreateSchemaType", bound=BaseModel)
 UpdateSchemaType = TypeVar("UpdateSchemaType", bound=BaseModel)
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 class CRUDBase(Generic[ModelType, CreateSchemaType, UpdateSchemaType]):
-    def __init__(self, model: Type[ModelType]):
-        self.model = model
 
-    def get_by_id(self, db: Session, id: Any) -> Optional[ModelType]:        
-        return db.query(self.model).filter(self.model.id == id).first()
+    def __init__(self, collection: Collection):
+        self.collection = collection
 
+    def get_by_id(self, collection: Collection, id: Any) -> Optional[Dict]:
+        return collection.find_one({'_id': id})
+
+    
     def get(
-        self, db: Session, *, skip: int = 0, limit: int = 100
+        self, collection: Collection, *, skip: int = 0, limit: int = 100
     ) -> List[ModelType]:
-        return db.query(self.model).offset(skip).limit(limit).all()
+        return list(collection.find().skip(skip).limit(limit))
 
-    def create(self, db: Session, *, obj_in: CreateSchemaType, created_by=None) -> ModelType:
+    def create(self, collection: Collection, *, obj_in: dict, created_by=None) -> dict:
         obj_in_data = jsonable_encoder(obj_in)
-        obj_in_data["created_by"] = created_by
-        db_obj = self.model(**obj_in_data)  # type: ignore
-        db.add(db_obj)
-        db.commit()
-        db.refresh(db_obj)
-        return db_obj
+        if created_by is not None:
+            obj_in_data["created_by"] = created_by
+        result = collection.insert_one(obj_in_data)
+        created_obj = collection.find_one({"_id": result.inserted_id})
+        return created_obj
+
 
     def update(
         self,
-        db: Session,
+        db_collection: Collection,
         *,
-        db_obj: ModelType,
-        obj_in: Union[UpdateSchemaType, Dict[str, Any]],
-        modified_by= None
-    ) -> ModelType:
-        obj_data = jsonable_encoder(db_obj)
-        if isinstance(obj_in, dict):
-            update_data = obj_in
-        else:
-            update_data = obj_in.dict(exclude_unset=True)
-        update_data["modified_by"] = modified_by
-        for field in obj_data:
-            if field in update_data:
-                setattr(db_obj, field, update_data[field])
-        db.add(db_obj)
-        db.commit()
-        db.refresh(db_obj)
-        return db_obj
+        db_obj_id: Union[str, ObjectId],
+        obj_in: Union[Dict[str, Any], Dict[str, Any]],
+        modified_by: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        if isinstance(db_obj_id, str):
+            db_obj_id = ObjectId(db_obj_id)
+        
+        update_data = { "$set": obj_in }
+        if modified_by is not None:
+            update_data["$set"]["modified_by"] = modified_by
+        
+        result = db_collection.find_one_and_update(
+            {"_id": db_obj_id},
+            update_data,
+            return_document=True
+        )
 
-    def remove(self, db: Session, *, id: int) -> ModelType:
-        obj = db.query(self.model).get(id)
-        db.delete(obj)
-        db.commit()
-        return obj
+        return result
+
+
+    def remove(self, db: Collection, *, id: str) -> dict:
+        result = db.find_one_and_delete({"_id": ObjectId(id)})
+        return result
